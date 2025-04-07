@@ -57,6 +57,11 @@
       text-align: left;
       min-height: 100px;
     }
+    .phase {
+      margin-top: 8px;
+      font-weight: bold;
+      color: #c05c00;
+    }
   </style>
 </head>
 <body>
@@ -65,22 +70,24 @@
     <div class="farm-box" id="yuyu-box">
       <h2>🌸 瑜榆</h2>
       <div class="button-container">
-        <button onclick="addAction('yuyu', '下種子')">下種子</button>
-        <button onclick="addAction('yuyu', '澆水')">澆水</button>
-        <button onclick="addAction('yuyu', '除塵')">除塵</button>
+        <button onclick="handleAction('yuyu', '下種子')">下種子</button>
+        <button onclick="handleAction('yuyu', '澆水')">澆水</button>
+        <button onclick="handleAction('yuyu', '除塵')">除塵</button>
         <button onclick="clearLog('yuyu')">清除紀錄</button>
       </div>
+      <div id="phase-yuyu" class="phase">目前階段：尚未開始</div>
       <div id="log-yuyu" class="log">（尚無紀錄）</div>
     </div>
 
     <div class="farm-box" id="cafetang-box">
       <h2>☕ 咖啡棠</h2>
       <div class="button-container">
-        <button onclick="addAction('cafetang', '下種子')">下種子</button>
-        <button onclick="addAction('cafetang', '澆水')">澆水</button>
-        <button onclick="addAction('cafetang', '除塵')">除塵</button>
+        <button onclick="handleAction('cafetang', '下種子')">下種子</button>
+        <button onclick="handleAction('cafetang', '澆水')">澆水</button>
+        <button onclick="handleAction('cafetang', '除塵')">除塵</button>
         <button onclick="clearLog('cafetang')">清除紀錄</button>
       </div>
+      <div id="phase-cafetang" class="phase">目前階段：尚未開始</div>
       <div id="log-cafetang" class="log">（尚無紀錄）</div>
     </div>
   </div>
@@ -104,11 +111,90 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    function addAction(role, action) {
+    const phaseSteps = [
+      [1, 1],
+      [1, 1],
+      [5, 5],
+      [9, 9]
+    ];
+
+    function getPhaseIndex(steps) {
+      let water = 0, dust = 0, phaseIndex = 0;
+      for (const step of steps) {
+        if (step === '澆水') water++;
+        if (step === '除塵') dust++;
+        const [reqWater, reqDust] = phaseSteps[phaseIndex] || [0, 0];
+        if (water === reqWater && dust === reqDust) {
+          phaseIndex++;
+          water = 0;
+          dust = 0;
+        }
+      }
+      return phaseIndex;
+    }
+
+    function updatePhaseDisplay(role, index) {
+      const phaseText = index === 0 && !document.getElementById(`log-${role}`).textContent.includes("下種子")
+        ? "目前階段：尚未開始"
+        : (index >= phaseSteps.length ? "🌟 已完成所有階段！" : `目前階段：第 ${index + 1} 階段`);
+      document.getElementById(`phase-${role}`).textContent = phaseText;
+    }
+
+    function handleAction(role, action) {
+      const ref = db.ref(`logs/${role}`);
+      ref.once("value", snapshot => {
+        const data = snapshot.val() || {};
+        const logs = Object.values(data);
+
+        if (action === '下種子') {
+          if (logs.length > 0) {
+            alert("已經種下種子，請先清除紀錄才能重新開始。");
+            return;
+          }
+          addEntry(role, action);
+          return;
+        }
+
+        if (logs.length === 0 || !logs[0].includes('下種子')) {
+          alert("請先下種子。");
+          return;
+        }
+
+        const steps = logs.slice(1).map(log => log.split(' - ')[1]);
+        const phaseIndex = getPhaseIndex(steps);
+        let water = 0, dust = 0;
+        for (let i = steps.length - 1; i >= 0; i--) {
+          if (steps[i] === '澆水') water++;
+          else if (steps[i] === '除塵') dust++;
+          if (water + dust >= phaseSteps[phaseIndex][0] + phaseSteps[phaseIndex][1]) break;
+        }
+
+        const [reqWater, reqDust] = phaseSteps[phaseIndex] || [0, 0];
+
+        if (action === '澆水') {
+          if (water >= reqWater) {
+            alert(`第 ${phaseIndex + 1} 階段澆水已完成，請先除塵`);
+            return;
+          }
+          addEntry(role, action);
+        } else if (action === '除塵') {
+          if (dust >= reqDust) {
+            alert(`第 ${phaseIndex + 1} 階段除塵已完成，請先澆水`);
+            return;
+          }
+          if (dust >= water) {
+            alert("請先澆水再除塵，需交替進行。");
+            return;
+          }
+          addEntry(role, action);
+        }
+      });
+    }
+
+    function addEntry(role, action) {
       const now = new Date().toLocaleString();
       const entry = `${now} - ${action}`;
-      const ref = db.ref(`logs/${role}`);
-      ref.push(entry);
+      db.ref(`logs/${role}`).push(entry);
     }
 
     function clearLog(role) {
@@ -123,8 +209,12 @@
       ref.off();
       ref.on("value", snapshot => {
         const data = snapshot.val();
-        const logText = data ? Object.values(data).join("\n") : "（尚無紀錄）";
-        logEl.textContent = logText;
+        const logs = data ? Object.values(data) : [];
+        logEl.textContent = logs.length ? logs.join("\n") : "（尚無紀錄）";
+
+        const steps = logs.slice(1).map(log => log.split(' - ')[1]);
+        const phaseIndex = getPhaseIndex(steps);
+        updatePhaseDisplay(role, phaseIndex);
       });
     }
 
