@@ -211,11 +211,6 @@
             return;
           }
           addEntry(role, action);
-          if ((water + 1 === reqWater) && (dust + 1 === reqDust)) {
-            setTimeout(() => {
-              alert(`🎉 恭喜完成第 ${phaseIndex + 1} 階段！進入第 ${phaseIndex + 2} 階段`);
-            }, 100);
-          }
         }
       });
     }
