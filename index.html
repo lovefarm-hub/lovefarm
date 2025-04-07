@@ -134,64 +134,65 @@
       return now.toLocaleString("zh-TW");
     }
 
+    function checkPhaseProgress(data) {
+      const current = phases[data.phase];
+      if (data.waterCount === current.water && data.dustCount === current.dust) {
+        if (data.phase < phases.length - 1) {
+          data.phase++;
+          data.waterCount = 0;
+          data.dustCount = 0;
+          data.log.push(`➡️ 進入第${data.phase + 1}階段`);
+        } else {
+          data.log.push("🎉 所有階段完成！");
+        }
+      }
+    }
+
     function handleAction(person, action) {
       const ref = db.ref(person);
       ref.once('value').then(snapshot => {
         let data = snapshot.val() || { ...initialData };
-        let { phase, waterCount, dustCount, isSeeded, log } = data;
+        const current = phases[data.phase];
+        const time = getNowTime();
 
         if (action === '下種子') {
-          if (isSeeded) {
+          if (data.isSeeded) {
             alert("已經下種子，請先完成任務或清除紀錄。");
             return;
           }
-          isSeeded = true;
-          log.push(`${getNowTime()} 已下種子`);
-        } else if (!isSeeded) {
+          data.isSeeded = true;
+          data.log.push(`${time} 已下種子`);
+        } else if (!data.isSeeded) {
           alert("請先下種子。");
           return;
-        } else {
-          const current = phases[phase];
-          const time = getNowTime();
-
-          if (action === '澆水') {
-            if (waterCount >= current.water) {
-              alert(`第 ${phase + 1} 階段澆水已完成，請先除塵。`);
-              return;
-            }
-            if (waterCount > dustCount) {
-              alert("請先除塵再繼續澆水。");
-              return;
-            }
-            waterCount++;
-            log.push(`${time} 第${phase + 1}階段：澆水${waterCount} / 除塵${dustCount}`);
-          } else if (action === '除塵') {
-            if (dustCount >= current.dust) {
-              alert(`第 ${phase + 1} 階段除塵已完成，請澆水。");
-              return;
-            }
-            if (dustCount >= waterCount) {
-              alert("請先澆水再除塵。");
-              return;
-            }
-            dustCount++;
-            log.push(`${time} 第${phase + 1}階段：澆水${waterCount} / 除塵${dustCount}`);
-
-            if (waterCount === current.water && dustCount === current.dust) {
-              if (phase < phases.length - 1) {
-                phase++;
-                waterCount = 0;
-                dustCount = 0;
-                log.push(`➡️ 進入第${phase + 1}階段`);
-              } else {
-                log.push("🎉 所有階段完成！");
-              }
-            }
+        } else if (action === '澆水') {
+          if (data.waterCount >= current.water) {
+            alert(`第 ${data.phase + 1} 階段澆水已完成，請先除塵。`);
+            return;
           }
+          if (data.waterCount > data.dustCount) {
+            alert("請先除塵再繼續澆水。");
+            return;
+          }
+          data.waterCount++;
+          data.log.push(`${time} 第${data.phase + 1}階段：澆水${data.waterCount} / 除塵${data.dustCount}`);
+          checkPhaseProgress(data);
+        } else if (action === '除塵') {
+          if (data.dustCount >= current.dust) {
+            alert(`第 ${data.phase + 1} 階段除塵已完成，請澆水。`);
+            return;
+          }
+          if (data.dustCount >= data.waterCount) {
+            alert("請先澆水再除塵。");
+            return;
+          }
+          data.dustCount++;
+          data.log.push(`${time} 第${data.phase + 1}階段：澆水${data.waterCount} / 除塵${data.dustCount}`);
+          checkPhaseProgress(data);
         }
 
-        ref.set({ phase, waterCount, dustCount, isSeeded, log });
-        updateUI(person, { phase, isSeeded, log });
+        ref.set(data);
+        updateUI(person, data);
       });
     }
 
