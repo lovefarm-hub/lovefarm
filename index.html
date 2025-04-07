@@ -114,7 +114,6 @@
 
     const db = firebase.database();
 
-    // 為兩位角色初始化
     const initialData = {
       phase: 0,
       waterCount: 0,
@@ -153,6 +152,8 @@
           return;
         } else {
           const current = phases[phase];
+          const time = getNowTime();
+
           if (action === '澆水') {
             if (waterCount >= current.water) {
               alert(`第 ${phase + 1} 階段澆水已完成，請先除塵。`);
@@ -163,10 +164,10 @@
               return;
             }
             waterCount++;
-            log.push(`${getNowTime()} 第${phase + 1}階段 澆水${waterCount}`);
+            log.push(`${time} 第${phase + 1}階段：澆水${waterCount} / 除塵${dustCount}`);
           } else if (action === '除塵') {
             if (dustCount >= current.dust) {
-              alert(`第 ${phase + 1} 階段除塵已完成，請澆水。`);
+              alert(`第 ${phase + 1} 階段除塵已完成，請澆水。");
               return;
             }
             if (dustCount >= waterCount) {
@@ -174,7 +175,7 @@
               return;
             }
             dustCount++;
-            log.push(`${getNowTime()} 第${phase + 1}階段 除塵${dustCount}`);
+            log.push(`${time} 第${phase + 1}階段：澆水${waterCount} / 除塵${dustCount}`);
 
             if (waterCount === current.water && dustCount === current.dust) {
               if (phase < phases.length - 1) {
@@ -190,7 +191,7 @@
         }
 
         ref.set({ phase, waterCount, dustCount, isSeeded, log });
-        updateUI(person, { phase, log });
+        updateUI(person, { phase, isSeeded, log });
       });
     }
 
@@ -209,7 +210,6 @@
       updateUI(person, initialData);
     }
 
-    // 初始載入 UI
     ['yuyu', 'cafetang'].forEach(person => {
       db.ref(person).once('value').then(snapshot => {
         const data = snapshot.val() || { ...initialData };
