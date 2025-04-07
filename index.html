@@ -119,10 +119,10 @@
     ];
 
     function getPhaseIndex(steps) {
-      let water = 0, dust = 0, phaseIndex = 0;
-      for (const step of steps) {
-        if (step === '澆水') water++;
-        if (step === '除塵') dust++;
+      let phaseIndex = 0, water = 0, dust = 0;
+      for (let i = 0; i < steps.length; i++) {
+        if (steps[i] === '澆水') water++;
+        if (steps[i] === '除塵') dust++;
         const [reqWater, reqDust] = phaseSteps[phaseIndex] || [0, 0];
         if (water === reqWater && dust === reqDust) {
           phaseIndex++;
@@ -131,6 +131,27 @@
         }
       }
       return phaseIndex;
+    }
+
+    function getStepNumbers(steps) {
+      const result = [];
+      let phaseIndex = 0, water = 0, dust = 0;
+      for (let i = 0; i < steps.length; i++) {
+        const [reqWater, reqDust] = phaseSteps[phaseIndex] || [0, 0];
+        if (steps[i] === '澆水') {
+          water++;
+          result.push(`第${phaseIndex + 1}階段 - 澆水 ${water}`);
+        } else if (steps[i] === '除塵') {
+          dust++;
+          result.push(`第${phaseIndex + 1}階段 - 除塵 ${dust}`);
+        }
+        if (water === reqWater && dust === reqDust) {
+          phaseIndex++;
+          water = 0;
+          dust = 0;
+        }
+      }
+      return result;
     }
 
     function updatePhaseDisplay(role, index) {
@@ -210,7 +231,14 @@
       ref.on("value", snapshot => {
         const data = snapshot.val();
         const logs = data ? Object.values(data) : [];
-        logEl.textContent = logs.length ? logs.join("\n") : "（尚無紀錄）";
+        if (logs.length <= 1) {
+          logEl.textContent = logs.length ? logs[0] : "（尚無紀錄）";
+        } else {
+          const base = logs[0];
+          const steps = logs.slice(1).map(log => log.split(' - ')[1]);
+          const numbered = getStepNumbers(steps);
+          logEl.textContent = [base, ...numbered].join("\n");
+        }
 
         const steps = logs.slice(1).map(log => log.split(' - ')[1]);
         const phaseIndex = getPhaseIndex(steps);
