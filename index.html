@@ -92,31 +92,23 @@
     </div>
   </div>
 
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyCaND_GsUFLxtl6F9XU7RP9d26NnCFEr80",
       authDomain: "lovefarm-bf280.firebaseapp.com",
       databaseURL: "https://lovefarm-bf280-default-rtdb.firebaseio.com",
       projectId: "lovefarm-bf280",
-      storageBucket: "lovefarm-bf280.firebasestorage.app",
+      storageBucket: "lovefarm-bf280.appspot.com",
       messagingSenderId: "627035726733",
       appId: "1:627035726733:web:7f24cccb88b410444753c4",
       measurementId: "G-EQGPHQJV8X"
     };
-
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const phaseSteps = [
-      [1, 1],
-      [1, 1],
-      [5, 5],
-      [9, 9]
-    ];
+    const phaseSteps = [ [1, 1], [1, 1], [5, 5], [9, 9] ];
 
     function getStepNumbers(logs) {
       const result = [];
@@ -147,7 +139,7 @@
       return result;
     }
 
-    function getPhaseIndex(logs) {
+    function getPhaseProgress(logs) {
       let phaseIndex = 0, water = 0, dust = 0;
       for (let i = 1; i < logs.length; i++) {
         const action = logs[i].split(" - ")[1];
@@ -161,7 +153,7 @@
           dust = 0;
         }
       }
-      return phaseIndex;
+      return { phaseIndex, water, dust };
     }
 
     function updatePhaseDisplay(role, index, started) {
@@ -176,7 +168,6 @@
       ref.once("value", snapshot => {
         const data = snapshot.val() || {};
         const logs = Object.values(data);
-
         if (action === '下種子') {
           if (logs.length > 0) {
             alert("已經種下種子，請先清除紀錄才能重新開始。");
@@ -185,22 +176,19 @@
           addEntry(role, action);
           return;
         }
-
         if (logs.length === 0 || !logs[0].includes('下種子')) {
           alert("請先下種子。");
           return;
         }
 
-        let phaseIndex = getPhaseIndex(logs);
-        let water = 0, dust = 0;
-        let lastAction = '';
+        const { phaseIndex, water, dust } = getPhaseProgress(logs);
         const [reqWater, reqDust] = phaseSteps[phaseIndex] || [0, 0];
 
-        for (let i = logs.length - 1; i >= 1; i--) {
-          const actionLog = logs[i].split(" - ")[1];
-          if (actionLog === '澆水') water++;
-          else if (actionLog === '除塵') dust++;
-          if (!lastAction) lastAction = actionLog;
+        const lastAction = logs.length > 1 ? logs[logs.length - 1].split(" - ")[1] : '';
+
+        if (phaseIndex >= phaseSteps.length) {
+          alert("🌟 所有階段已完成！");
+          return;
         }
 
         if (action === '澆水') {
@@ -223,8 +211,7 @@
             return;
           }
           addEntry(role, action);
-
-          if (water + 1 === reqWater && dust + 1 === reqDust) {
+          if ((water + 1 === reqWater) && (dust + 1 === reqDust)) {
             setTimeout(() => {
               alert(`🎉 恭喜完成第 ${phaseIndex + 1} 階段！進入第 ${phaseIndex + 2} 階段`);
             }, 100);
@@ -264,7 +251,7 @@
           const detailedSteps = getStepNumbers(logs);
           logEl.textContent = [base, ...detailedSteps].join("\n");
         }
-        updatePhaseDisplay(role, getPhaseIndex(logs), logs.length > 0);
+        updatePhaseDisplay(role, getPhaseProgress(logs).phaseIndex, logs.length > 0);
       });
     }
 
