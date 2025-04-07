@@ -129,12 +129,16 @@
         }
 
         if (water === reqWater && dust === reqDust) {
+          result.push(`第 ${phaseIndex + 1} 階段完成 🎉（澆水 ${reqWater} 次 + 除塵 ${reqDust} 次）`);
           phaseIndex++;
           water = 0;
           dust = 0;
           stepWater = 1;
           stepDust = 1;
         }
+      }
+      if (phaseIndex > 0) {
+        result.push(`\n✅ 目前共完成 ${phaseIndex} 階段`);
       }
       return result;
     }
@@ -143,10 +147,12 @@
       let phaseIndex = 0, water = 0, dust = 0;
       for (let i = 1; i < logs.length; i++) {
         const action = logs[i].split(" - ")[1];
-        if (action === '澆水') water++;
-        else if (action === '除塵') dust++;
-
         const [reqWater, reqDust] = phaseSteps[phaseIndex] || [0, 0];
+        if (action === '澆水') {
+          if (water < reqWater && (water === dust)) water++;
+        } else if (action === '除塵') {
+          if (dust < reqDust && (dust < water)) dust++;
+        }
         if (water === reqWater && dust === reqDust) {
           phaseIndex++;
           water = 0;
@@ -183,7 +189,6 @@
 
         const { phaseIndex, water, dust } = getPhaseProgress(logs);
         const [reqWater, reqDust] = phaseSteps[phaseIndex] || [0, 0];
-
         const lastAction = logs.length > 1 ? logs[logs.length - 1].split(" - ")[1] : '';
 
         if (phaseIndex >= phaseSteps.length) {
