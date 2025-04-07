@@ -113,6 +113,110 @@
     }
 
     const db = firebase.database();
+
+    const initialData = {
+      phase: 0,
+      waterCount: 0,
+      dustCount: 0,
+      isSeeded: false,
+      log: []
+    };
+
+    const phases = [
+      { water: 1, dust: 1 },
+      { water: 1, dust: 1 },
+      { water: 5, dust: 5 },
+      { water: 9, dust: 9 }
+    ];
+
+    function getNowTime() {
+      const now = new Date();
+      return now.toLocaleString("zh-TW");
+    }
+
+    function checkPhaseProgress(data) {
+      const current = phases[data.phase];
+      if (data.waterCount === current.water && data.dustCount === current.dust) {
+        if (data.phase < phases.length - 1) {
+          data.phase++;
+          data.waterCount = 0;
+          data.dustCount = 0;
+          data.log.push(`➡️ 進入第${data.phase + 1}階段`);
+        } else {
+          data.log.push("🎉 所有階段完成！");
+        }
+      }
+    }
+
+    function handleAction(person, action) {
+      const ref = db.ref(person);
+      ref.once('value').then(snapshot => {
+        let data = snapshot.val() || { ...initialData };
+        const current = phases[data.phase];
+        const time = getNowTime();
+
+        if (action === '下種子') {
+          if (data.isSeeded) {
+            alert("已經下種子，請先完成任務或清除紀錄。");
+            return;
+          }
+          data.isSeeded = true;
+          data.log.push(`${time} 已下種子`);
+        } else if (!data.isSeeded) {
+          alert("請先下種子。");
+          return;
+        } else if (action === '澆水') {
+          if (data.waterCount >= current.water) {
+            alert(`第 ${data.phase + 1} 階段澆水已完成，請先除塵。`);
+            return;
+          }
+          if (data.waterCount > data.dustCount) {
+            alert("請先除塵再繼續澆水。");
+            return;
+          }
+          data.waterCount++;
+          data.log.push(`${time} 第${data.phase + 1}階段：澆水${data.waterCount} / 除塵${data.dustCount}`);
+          checkPhaseProgress(data);
+        } else if (action === '除塵') {
+          if (data.dustCount >= current.dust) {
+            alert(`第 ${data.phase + 1} 階段除塵已完成，請澆水。`);
+            return;
+          }
+          if (data.dustCount >= data.waterCount) {
+            alert("請先澆水再除塵。");
+            return;
+          }
+          data.dustCount++;
+          data.log.push(`${time} 第${data.phase + 1}階段：澆水${data.waterCount} / 除塵${data.dustCount}`);
+          checkPhaseProgress(data);
+        }
+
+        ref.set(data);
+        updateUI(person, data);
+      });
+    }
+
+    function updateUI(person, data) {
+      const phaseText = data.isSeeded
+        ? data.phase < phases.length
+          ? `目前階段：第 ${data.phase + 1} 階段`
+          : "目前階段：全部完成 🎉"
+        : "目前階段：尚未開始";
+      document.getElementById(`phase-${person}`).innerText = phaseText;
+      document.getElementById(`log-${person}`).innerText = data.log.join("\n") || "（尚無紀錄）";
+    }
+
+    function clearLog(person) {
+      db.ref(person).set({ ...initialData });
+      updateUI(person, initialData);
+    }
+
+    ['yuyu', 'cafetang'].forEach(person => {
+      db.ref(person).once('value').then(snapshot => {
+        const data = snapshot.val() || { ...initialData };
+        updateUI(person, data);
+      });
+    });
   </script>
 </body>
 </html>
