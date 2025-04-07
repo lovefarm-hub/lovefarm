@@ -215,7 +215,12 @@
     function addEntry(role, action) {
       const now = new Date().toLocaleString();
       const entry = `${now} - ${action}`;
-      db.ref(`logs/${role}`).push(entry);
+      const ref = db.ref(`logs/${role}`);
+      ref.once("value", snapshot => {
+        const data = snapshot.val() || {};
+        const count = Object.keys(data).length + 1;
+        ref.child(`log${count}`).set(entry);
+      });
     }
 
     function clearLog(role) {
