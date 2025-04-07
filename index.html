@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>瑜榆與咖啡棠的愛的農場</title>
+  <style>
+    body {
+      font-family: "微軟正黑體", sans-serif;
+      background-color: #fff9f0;
+      padding: 30px;
+    }
+    h1 {
+      text-align: center;
+      font-size: 2em;
+      margin-bottom: 20px;
+    }
+    .farm-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+    }
+    .farm-box {
+      background-color: #ffffff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+      margin: 10px;
+      flex: 1 1 300px;
+      max-width: 500px;
+    }
+    .farm-box h2 {
+      margin-top: 0;
+    }
+    .button-container {
+      margin: 10px 0;
+    }
+    button {
+      font-size: 1em;
+      margin: 4px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      background-color: #a0d8ef;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #7ecce0;
+    }
+    .log {
+      margin-top: 10px;
+      background-color: #f9f9f9;
+      padding: 10px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      text-align: left;
+      min-height: 100px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌱 瑜榆與咖啡棠的愛的農場紀錄</h1>
+  <div class="farm-container">
+    <div class="farm-box" id="yuyu-box">
+      <h2>🌸 瑜榆</h2>
+      <div class="button-container">
+        <button onclick="addAction('yuyu', '下種子')">下種子</button>
+        <button onclick="addAction('yuyu', '澆水')">澆水</button>
+        <button onclick="addAction('yuyu', '除塵')">除塵</button>
+        <button onclick="clearLog('yuyu')">清除紀錄</button>
+      </div>
+      <div id="log-yuyu" class="log">（尚無紀錄）</div>
+    </div>
+
+    <div class="farm-box" id="cafetang-box">
+      <h2>☕ 咖啡棠</h2>
+      <div class="button-container">
+        <button onclick="addAction('cafetang', '下種子')">下種子</button>
+        <button onclick="addAction('cafetang', '澆水')">澆水</button>
+        <button onclick="addAction('cafetang', '除塵')">除塵</button>
+        <button onclick="clearLog('cafetang')">清除紀錄</button>
+      </div>
+      <div id="log-cafetang" class="log">（尚無紀錄）</div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCaND_GsUFLxtl6F9XU7RP9d26NnCFEr80",
+      authDomain: "lovefarm-bf280.firebaseapp.com",
+      databaseURL: "https://lovefarm-bf280-default-rtdb.firebaseio.com",
+      projectId: "lovefarm-bf280",
+      storageBucket: "lovefarm-bf280.firebasestorage.app",
+      messagingSenderId: "627035726733",
+      appId: "1:627035726733:web:7f24cccb88b410444753c4",
+      measurementId: "G-EQGPHQJV8X"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    function addAction(role, action) {
+      const now = new Date().toLocaleString();
+      const entry = `${now} - ${action}`;
+      const ref = db.ref(`logs/${role}`);
+      ref.push(entry);
+    }
+
+    function clearLog(role) {
+      if (confirm("確定要清除所有紀錄嗎？")) {
+        db.ref(`logs/${role}`).remove();
+      }
+    }
+
+    function loadLog(role) {
+      const logEl = document.getElementById(`log-${role}`);
+      const ref = db.ref(`logs/${role}`);
+      ref.off();
+      ref.on("value", snapshot => {
+        const data = snapshot.val();
+        const logText = data ? Object.values(data).join("\n") : "（尚無紀錄）";
+        logEl.textContent = logText;
+      });
+    }
+
+    loadLog("yuyu");
+    loadLog("cafetang");
+  </script>
+</body>
+</html>
