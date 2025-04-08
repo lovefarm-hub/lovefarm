@@ -2,18 +2,18 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>瑜榆與咖啡棠的愛的農場</title>
   <style>
     body {
       font-family: "微軟正黑體", sans-serif;
       background-color: #fff9f0;
-      padding: 30px;
+      padding: 20px;
     }
     h1 {
       text-align: center;
       font-size: 2em;
-      margin-bottom: 20px;
+      margin-bottom: 30px;
     }
     .farm-container {
       display: flex;
@@ -24,7 +24,7 @@
       background-color: #ffffff;
       padding: 20px;
       border-radius: 12px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
       margin: 10px;
       flex: 1 1 300px;
       max-width: 500px;
@@ -33,14 +33,14 @@
       margin-top: 0;
     }
     .button-container {
-      margin: 10px 0;
+      margin-bottom: 10px;
     }
     button {
-      font-size: 1em;
       margin: 4px;
-      padding: 8px 16px;
-      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 1em;
       border: none;
+      border-radius: 8px;
       background-color: #a0d8ef;
       cursor: pointer;
       transition: background-color 0.3s;
@@ -48,19 +48,18 @@
     button:hover {
       background-color: #7ecce0;
     }
+    .phase {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #c05c00;
+    }
     .log {
       margin-top: 10px;
       background-color: #f9f9f9;
       padding: 10px;
       border-radius: 8px;
+      min-height: 120px;
       white-space: pre-wrap;
-      text-align: left;
-      min-height: 100px;
-    }
-    .phase {
-      margin-top: 8px;
-      font-weight: bold;
-      color: #c05c00;
     }
   </style>
 </head>
@@ -106,13 +105,15 @@
       measurementId: "G-EQGPHQJV8X"
     };
 
-    try {
-      firebase.initializeApp(firebaseConfig);
-    } catch (error) {
-      console.error("Firebase 初始化失敗:", error);
-    }
-
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+
+    const phases = [
+      { water: 1, dust: 1 },
+      { water: 1, dust: 1 },
+      { water: 5, dust: 5 },
+      { water: 9, dust: 9 }
+    ];
 
     const initialData = {
       phase: 0,
@@ -122,26 +123,28 @@
       log: []
     };
 
-    const phases = [
-      { water: 1, dust: 1 },
-      { water: 1, dust: 1 },
-      { water: 5, dust: 5 },
-      { water: 9, dust: 9 }
-    ];
-
-    function getNowTime() {
-      const now = new Date();
-      return now.toLocaleString("zh-TW");
+    function getTime() {
+      return new Date().toLocaleString("zh-TW");
     }
 
-    function checkPhaseProgress(data) {
+    function updateUI(person, data) {
+      const phaseDisplay = data.isSeeded
+        ? data.phase < phases.length
+          ? `目前階段：第 ${data.phase + 1} 階段`
+          : "目前階段：全部完成 🎉"
+        : "目前階段：尚未開始";
+      document.getElementById(`phase-${person}`).innerText = phaseDisplay;
+      document.getElementById(`log-${person}`).innerText = data.log.join("\n") || "（尚無紀錄）";
+    }
+
+    function checkAdvancePhase(data) {
       const current = phases[data.phase];
       if (data.waterCount === current.water && data.dustCount === current.dust) {
         if (data.phase < phases.length - 1) {
           data.phase++;
           data.waterCount = 0;
           data.dustCount = 0;
-          data.log.push(`➡️ 進入第${data.phase + 1}階段`);
+          data.log.push(`➡️ 進入第 ${data.phase + 1} 階段`);
         } else {
           data.log.push("🎉 所有階段完成！");
         }
@@ -153,15 +156,15 @@
       ref.once('value').then(snapshot => {
         let data = snapshot.val() || { ...initialData };
         const current = phases[data.phase];
-        const time = getNowTime();
+        const now = getTime();
 
         if (action === '下種子') {
           if (data.isSeeded) {
-            alert("已經下種子，請先完成任務或清除紀錄。");
+            alert("已下種子，請先完成任務或清除紀錄。");
             return;
           }
           data.isSeeded = true;
-          data.log.push(`${time} 已下種子`);
+          data.log.push(`${now} 已下種子`);
         } else if (!data.isSeeded) {
           alert("請先下種子。");
           return;
@@ -171,15 +174,15 @@
             return;
           }
           if (data.waterCount > data.dustCount) {
-            alert("請先除塵再繼續澆水。");
+            alert("請先除塵再澆水。");
             return;
           }
           data.waterCount++;
-          data.log.push(`${time} 第${data.phase + 1}階段：澆水${data.waterCount} / 除塵${data.dustCount}`);
-          checkPhaseProgress(data);
+          data.log.push(`${now} 第${data.phase + 1}階段：澆水 ${data.waterCount} 次`);
+          checkAdvancePhase(data);
         } else if (action === '除塵') {
           if (data.dustCount >= current.dust) {
-            alert(`第 ${data.phase + 1} 階段除塵已完成，請澆水。`);
+            alert(`第 ${data.phase + 1} 階段除塵已完成，請先澆水。`);
             return;
           }
           if (data.dustCount >= data.waterCount) {
@@ -187,23 +190,13 @@
             return;
           }
           data.dustCount++;
-          data.log.push(`${time} 第${data.phase + 1}階段：澆水${data.waterCount} / 除塵${data.dustCount}`);
-          checkPhaseProgress(data);
+          data.log.push(`${now} 第${data.phase + 1}階段：除塵 ${data.dustCount} 次`);
+          checkAdvancePhase(data);
         }
 
         ref.set(data);
         updateUI(person, data);
       });
-    }
-
-    function updateUI(person, data) {
-      const phaseText = data.isSeeded
-        ? data.phase < phases.length
-          ? `目前階段：第 ${data.phase + 1} 階段`
-          : "目前階段：全部完成 🎉"
-        : "目前階段：尚未開始";
-      document.getElementById(`phase-${person}`).innerText = phaseText;
-      document.getElementById(`log-${person}`).innerText = data.log.join("\n") || "（尚無紀錄）";
     }
 
     function clearLog(person) {
